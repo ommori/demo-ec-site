@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>MMX Add To Cart - Test Page</title>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-MRSX7MPX');</script>
+    <!-- End Google Tag Manager -->
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .product { border: 1px solid #ddd; padding: 10px; margin: 8px 0; display:flex; gap:10px; align-items:center; }
+    .product img { width:80px; height:80px; object-fit:cover; }
+    .controls { margin-top: 12px; }
+    label { display:inline-block; width:90px; }
+    input[type="text"] { padding:6px; width:220px; }
+    button { padding:8px 12px; cursor:pointer; }
+    .small { color:#666; font-size:0.9em; }
+  </style>
+</head>
+<body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MRSX7MPX"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+  <h1>MMX Add To Cart — Test Page</h1>
+
+  <div>
+    <label for="memberId">会員ID</label>
+    <input id="memberId" type="text" placeholder="例: user12345" />
+    <label for="email" style="margin-left:12px">Email</label>
+    <input id="email" type="text" placeholder="user@email.com" />
+    <button id="clearSession" title="新しい cartId を作る">New Cart</button>
+  </div>
+
+  <p class="small" style="margin-top:8px;">
+    「Add」を押すと dataLayer に mmx_addToCart イベントを push します。GTM プレビューで変数（mmx_items 等）の中身を確認してください。
+  </p>
+
+  <div id="products">
+    <!-- サンプル商品リスト -->
+  </div>
+
+  <div class="controls">
+    <button id="addAll">Add All Items to Cart</button>
+    <button id="showDL">Show Last payload (console)</button>
+  </div>
+
+  <script>
+  // 簡易 UUID v4（cartId 用）
+  function uuidv4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  // sessionStorage に cartId を保持
+  var CART_KEY = 'mmx_test_cart_id';
+  function getSessionCartId() {
+    try {
+      var v = sessionStorage.getItem(CART_KEY);
+      if (!v) {
+        v = uuidv4();
+        sessionStorage.setItem(CART_KEY, v);
+      }
+      return v;
+    } catch (e) {
+      return uuidv4();
+    }
+  }
+  function newCartId() {
+    var v = uuidv4();
+    try { sessionStorage.setItem(CART_KEY, v); } catch(e){}
+    return v;
+  }
+
+  // サンプル商品データ
+  var PRODUCTS = [
+    {
+      sku: 'BOK-ABC123',
+      name: 'Silmarillion',
+      quantity: 1,
+      baseprice: 10.99,
+      netprice: 9.99,
+      discount: 1.00,
+      discountType: 'fixed',
+      type: 'book',
+      category: 'books',
+      subcategory: 'fantasy',
+      description: 'Tiny preface for The Lord of the Rings',
+      upc: '1234567890',
+      imageUrl: 'https://via.placeholder.com/80?text=Book1'
+    },
+    {
+      sku: 'BOK-DEF456',
+      name: 'Leaflet of Middle-Earth',
+      quantity: 1,
+      baseprice: 5.50,
+      netprice: 5.50,
+      discount: 0.00,
+      discountType: 'none',
+      type: 'booklet',
+      category: 'books',
+      subcategory: 'guide',
+      description: 'A small companion guide',
+      upc: '0987654321',
+      imageUrl: 'https://via.placeholder.com/80?text=Book2'
+    },
+    {
+      sku: 'ACC-XYZ987',
+      name: 'Hobbit Keychain',
+      quantity: 2,
+      baseprice: 3.00,
+      netprice: 2.50,
+      discount: 0.50,
+      discountType: 'fixed',
+      type: 'accessory',
+      category: 'goods',
+      subcategory: 'keychain',
+      description: 'Cute hobbit keychain',
+      upc: '5556667778',
+      imageUrl: 'https://via.placeholder.com/80?text=Keychain'
+    }
+  ];
+
+  // DOM に商品を描画
+  var productsDiv = document.getElementById('products');
+  PRODUCTS.forEach(function(p, idx){
+    var box = document.createElement('div');
+    box.className = 'product';
+    box.innerHTML = ''
+      + '<img src="'+p.imageUrl+'" alt="">'
+      + '<div style="flex:1">'
+      + '<div><strong>' + p.name + '</strong> <small>(' + p.sku + ')</small></div>'
+      + '<div class="small">' + p.description + '</div>'
+      + '<div style="margin-top:6px;">Price: $' + p.baseprice + ' &nbsp; Qty: <input data-idx="'+idx+'" class="qty" type="number" min="1" value="'+p.quantity+'" style="width:50px"></div>'
+      + '</div>'
+      + '<div><button data-idx="'+idx+'" class="btnAdd">Add</button></div>';
+    productsDiv.appendChild(box);
+  });
+
+  // 最後に push した payload を保存（デバッグ用）
+  var lastPayload = null;
+
+  // dataLayer push 用関数（配列オブジェクトを必ず渡す）
+  function pushAddToCart(itemsArray) {
+    var cartId = getSessionCartId();
+    var memberId = document.getElementById('memberId').value || '';
+    var email = document.getElementById('email').value || '';
+
+    var payload = {
+      cartId: cartId,
+      // 必要に応じて idType を 'email' や 'external' に変更してください
+      idType: 'external',
+      // 会員ID は mmx_memberId として送る（GTM 側で同名の Data Layer 変数を作成）
+      mmx_memberId: memberId,
+      // 一般的には email を直接送る場合は email プロパティを使う
+      email: email,
+      // profileAttributes を送る場合の例
+      profileAttributes: {
+        profileMemberId: memberId,
+        profileFirstName: 'Test',
+        profileLastName: 'User'
+      },
+      items: itemsArray
+    };
+
+    // dataLayer に push - GTM 側では mmx_items という名前で受け取りたい場合は key を調整して下さい。
+    // ここでは既存実装に合わせて mmx_items と items の両方を入れておきます（GTM 設定に合わせてください）
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      event: 'mmx_addToCart',
+      mmx_cartId: cartId,
+      mmx_memberId: memberId,
+      mmx_email: email,
+      mmx_profileAttributes: payload.profileAttributes,
+      mmx_items: itemsArray,
+      // 旧互換や直接 Signals 呼び出しを行う場合のペイロードも入れておきます
+      mmx_payload: payload
+    });
+
+    // デバッグ出力
+    lastPayload = payload;
+    console.log('mmx_addToCart pushed', payload);
+    alert('mmx_addToCart pushed — open GTM Preview / Network tab to inspect');
+  }
+
+  // 個別 Add ボタン処理
+  document.querySelectorAll('.btnAdd').forEach(function(btn){
+    btn.addEventListener('click', function(ev){
+      var idx = parseInt(ev.currentTarget.getAttribute('data-idx'), 10);
+      var qtyInput = document.querySelector('.qty[data-idx="'+idx+'"]');
+      var qty = parseInt(qtyInput.value, 10) || 1;
+      var prod = PRODUCTS[idx];
+      var item = {
+        sku: prod.sku,
+        name: prod.name,
+        quantity: qty,
+        baseprice: prod.baseprice,
+        netprice: prod.netprice,
+        discount: prod.discount,
+        discountType: prod.discountType,
+        type: prod.type,
+        category: prod.category,
+        subcategory: prod.subcategory,
+        description: prod.description,
+        upc: prod.upc,
+        itemAttributes: {
+          imageUrl: prod.imageUrl
+        }
+      };
+      pushAddToCart([item]);
+    });
+  });
+
+  // 全件追加ボタン
+  document.getElementById('addAll').addEventListener('click', function(){
+    // quantity を各入力欄から取得
+    var items = [];
+    document.querySelectorAll('.qty').forEach(function(q){
+      var idx = parseInt(q.getAttribute('data-idx'), 10);
+      var qty = parseInt(q.value, 10) || 1;
+      var p = PRODUCTS[idx];
+      items.push({
+        sku: p.sku,
+        name: p.name,
+        quantity: qty,
+        baseprice: p.baseprice,
+        netprice: p.netprice,
+        discount: p.discount,
+        discountType: p.discountType,
+        type: p.type,
+        category: p.category,
+        subcategory: p.subcategory,
+        description: p.description,
+        upc: p.upc,
+        itemAttributes: { imageUrl: p.imageUrl }
+      });
+    });
+    if (items.length === 0) { alert('No items'); return; }
+    pushAddToCart(items);
+  });
+
+  // Show last payload in console (debug)
+  document.getElementById('showDL').addEventListener('click', function(){
+    console.log('lastPayload:', lastPayload);
+    alert('See console for last payload');
+  });
+
+  // New Cart ボタン
+  document.getElementById('clearSession').addEventListener('click', function(){
+    var newId = newCartId();
+    alert('New cartId created: ' + newId);
+    console.log('New cartId:', newId);
+  });
+
+  // （オプション） ページロード時に cartId を表示（console）
+  console.log('current cartId:', getSessionCartId());
+  </script>
+</body>
+</html>
