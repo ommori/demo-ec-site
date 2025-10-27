@@ -5,12 +5,11 @@
   <title>MMX Add To Cart — Test Page</title>
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src 'self' 'unsafe-inline' https://api-jp.signals.ngxint.com https://api-jp.signals.engageplatform.com https://www.googletagmanager.com https://www.googletagmanager.com;
-    connect-src 'self' https://api-jp.signals.ngxint.com https://api-jp.signals.engageplatform.com https://api-jp.signals.ngxint.com:443 https://api-jp.signals.engageplatform.com:443;
-    img-src 'self' data: https://via.placeholder.com;
+    script-src 'self' 'unsafe-inline' https://mmx-jp-signals-js.s3.ap-northeast-1.amazonaws.com https://api-jp.signals.ngxint.com https://api-jp.signals.engageplatform.com https://www.googletagmanager.com;
+    connect-src 'self' https://mmx-jp-signals-js.s3.ap-northeast-1.amazonaws.com https://api-jp.signals.ngxint.com https://api-jp.signals.engageplatform.com https://api-jp.signals.engageplatform.com:443 https://api-jp.signals.ngxint.com:443;
+    img-src 'self' data:;
     style-src 'self' 'unsafe-inline';
     object-src 'none';
-    frame-ancestors 'none';
   ">
   <script>
     // fetch をログ（CSP が通った後の動作確認用）
